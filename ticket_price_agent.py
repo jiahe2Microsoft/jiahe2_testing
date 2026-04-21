@@ -125,6 +125,7 @@ def send_email_alert(
     recipient: str,
     checked_at: str,
     previous_historical_low: Optional[float],
+    force_send: bool = False,
 ) -> None:
     smtp_host = os.getenv("ALERT_SMTP_HOST")
     smtp_port = int(os.getenv("ALERT_SMTP_PORT", "465"))
@@ -142,16 +143,29 @@ def send_email_alert(
     msg["Subject"] = EMAIL_SUBJECT
     msg["From"] = from_email
     msg["To"] = recipient
-    previous_text = (
-        f"${previous_historical_low:.2f}" if previous_historical_low is not None else "none (first result)"
-    )
-    msg.set_content(
-        "A new historical low ticket price was detected.\n"
-        f"Checked at (UTC): {checked_at}\n"
-        f"Previous historical low: {previous_text}\n"
-        f"Lowest price: ${lowest_price:.2f}\n"
-        f"Event: {event_url}"
-    )
+
+    if force_send:
+        historical_text = (
+            f"${previous_historical_low:.2f}" if previous_historical_low is not None else "none recorded yet"
+        )
+        msg.set_content(
+            "Current ticket price check (manually requested).\n"
+            f"Checked at (UTC): {checked_at}\n"
+            f"Current lowest price: ${lowest_price:.2f}\n"
+            f"Historical low on record: {historical_text}\n"
+            f"Event: {event_url}"
+        )
+    else:
+        previous_text = (
+            f"${previous_historical_low:.2f}" if previous_historical_low is not None else "none (first result)"
+        )
+        msg.set_content(
+            "A new historical low ticket price was detected.\n"
+            f"Checked at (UTC): {checked_at}\n"
+            f"Previous historical low: {previous_text}\n"
+            f"Lowest price: ${lowest_price:.2f}\n"
+            f"Event: {event_url}"
+        )
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
@@ -159,7 +173,7 @@ def send_email_alert(
         server.send_message(msg)
 
 
-def run_check() -> None:
+def run_check(force_send: bool = False) -> None:
     event_url = os.getenv("SEATGEEK_EVENT_URL")
     if not event_url:
         event_url = search_event_url()
@@ -174,7 +188,7 @@ def run_check() -> None:
     state = load_state()
     historical_low = state.get("historical_low")
     previous_historical_low = float(historical_low) if historical_low is not None else None
-    should_alert = previous_historical_low is None or current_price < previous_historical_low
+    should_alert = force_send or previous_historical_low is None or current_price < previous_historical_low
 
     checked_at = datetime.now(timezone.utc).isoformat()
     recipient = os.getenv("ALERT_TO_EMAIL")
@@ -191,10 +205,12 @@ def run_check() -> None:
             recipient,
             checked_at,
             previous_historical_low,
+            force_send=force_send,
         )
-        state["historical_low"] = current_price
-        state["last_alert_at"] = checked_at
-        print(f"[{checked_at}] New historical low found: ${current_price:.2f} (alert sent)")
+        if not force_send:
+            state["historical_low"] = current_price
+            state["last_alert_at"] = checked_at
+        print(f"[{checked_at}] Current price: ${current_price:.2f} (email sent to {recipient})")
     else:
         print(
             f"[{checked_at}] Current price: ${current_price:.2f} | "
@@ -212,7 +228,16 @@ def main() -> int:
         action="store_true",
         help="Run one price check immediately and exit.",
     )
+    parser.add_argument(
+        "--send-now",
+        action="store_true",
+        help="Fetch the current price, email it immediately, and exit (regardless of historical low).",
+    )
     args = parser.parse_args()
+
+    if args.send_now:
+        run_check(force_send=True)
+        return 0
 
     if args.once:
         run_check()
