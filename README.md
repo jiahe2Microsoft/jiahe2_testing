@@ -5,7 +5,7 @@ This repository includes `ticket_price_agent.py`, a Python agent that:
 - Finds the SeatGeek event for **World Cup Round of 32 – 1I VS TBD** in **New York/New Jersey**
 - Checks the lowest listed ticket price every 5 minutes
 - Tracks the historical lowest price locally
-- Sends an email alert to `hejia90@hotmail.com` whenever a new historical low is found
+- Sends an email alert whenever a new historical low is found
 
 ## Requirements
 
@@ -21,7 +21,7 @@ Set environment variables before running:
 - `ALERT_SMTP_USERNAME`
 - `ALERT_SMTP_PASSWORD`
 - `ALERT_FROM_EMAIL` (optional; defaults to `ALERT_SMTP_USERNAME`)
-- `ALERT_TO_EMAIL` (optional; defaults to `hejia90@hotmail.com`)
+- `ALERT_TO_EMAIL` (required; set this to `hejia90@hotmail.com`)
 - `SEATGEEK_EVENT_URL` (optional; if omitted, the script searches SeatGeek automatically)
 
 ## Usage

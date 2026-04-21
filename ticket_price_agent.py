@@ -15,11 +15,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-DEFAULT_RECIPIENT = "hejia90@hotmail.com"
 EMAIL_SUBJECT = "world cup ticket alert"
 POLL_SECONDS = 300
 STATE_FILE = Path(__file__).resolve().parent / ".ticket_agent_state.json"
-TARGET_QUERY = "world cup game round of 32 1I VS TBD new york new jersey"
+TARGET_QUERY = "world cup game round of 32 1I vs TBD new york new jersey"
 
 
 def fetch_html(url: str) -> str:
@@ -176,7 +175,9 @@ def run_check() -> None:
     previous_historical_low = float(historical_low) if historical_low is not None else None
 
     checked_at = datetime.now(timezone.utc).isoformat()
-    recipient = os.getenv("ALERT_TO_EMAIL", DEFAULT_RECIPIENT)
+    recipient = os.getenv("ALERT_TO_EMAIL")
+    if not recipient:
+        raise RuntimeError("Missing ALERT_TO_EMAIL (set to hejia90@hotmail.com).")
     state["last_checked_at"] = checked_at
     state["last_price"] = current_price
     state["event_url"] = event_url
