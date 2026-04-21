@@ -17,6 +17,7 @@ from urllib.request import Request, urlopen
 
 EMAIL_SUBJECT = "world cup ticket alert"
 POLL_SECONDS = 300
+MIN_MATCH_SCORE = 4
 STATE_FILE = Path(__file__).resolve().parent / ".ticket_agent_state.json"
 TARGET_QUERY = "world cup game round of 32 1I vs TBD new york new jersey"
 
@@ -63,7 +64,8 @@ def search_event_url() -> Optional[str]:
             best_score = score
             best_url = url
 
-    if best_score >= 4:
+    # Require core event terms plus at least two additional signals to reduce false matches.
+    if best_score >= MIN_MATCH_SCORE:
         return best_url
     return None
 
@@ -177,7 +179,7 @@ def run_check() -> None:
     checked_at = datetime.now(timezone.utc).isoformat()
     recipient = os.getenv("ALERT_TO_EMAIL")
     if not recipient:
-        raise RuntimeError("Missing ALERT_TO_EMAIL (set to hejia90@hotmail.com).")
+        raise RuntimeError("Missing ALERT_TO_EMAIL environment variable.")
     state["last_checked_at"] = checked_at
     state["last_price"] = current_price
     state["event_url"] = event_url

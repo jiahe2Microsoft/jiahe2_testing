@@ -21,7 +21,7 @@ Set environment variables before running:
 - `ALERT_SMTP_USERNAME`
 - `ALERT_SMTP_PASSWORD`
 - `ALERT_FROM_EMAIL` (optional; defaults to `ALERT_SMTP_USERNAME`)
-- `ALERT_TO_EMAIL` (required; set this to `hejia90@hotmail.com`)
+- `ALERT_TO_EMAIL` (required; set this to your destination address, e.g. `your-email@example.com`)
 - `SEATGEEK_EVENT_URL` (optional; if omitted, the script searches SeatGeek automatically)
 
 ## Usage
