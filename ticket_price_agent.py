@@ -15,7 +15,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
-TARGET_RECIPIENT = "hejia90@hotmail.com"
+DEFAULT_RECIPIENT = "hejia90@hotmail.com"
 EMAIL_SUBJECT = "world cup ticket alert"
 POLL_SECONDS = 300
 STATE_FILE = Path(__file__).resolve().parent / ".ticket_agent_state.json"
@@ -49,16 +49,23 @@ def search_event_url() -> Optional[str]:
             seen.add(url)
             urls.append(url)
 
-    keyword_order = [
-        ("world-cup", "round-of-32", "1i", "tbd", "new-york", "new-jersey"),
-        ("world-cup", "round-of-32", "1i", "tbd"),
-        ("world-cup", "round-of-32"),
-    ]
-    lowered = [u.lower() for u in urls]
-    for group in keyword_order:
-        for i, lowered_url in enumerate(lowered):
-            if all(keyword in lowered_url for keyword in group):
-                return urls[i]
+    best_url = None
+    best_score = -1
+    for url in urls:
+        lowered_url = url.lower()
+        score = 0
+        for keyword in ("world-cup", "round-of-32", "1i", "tbd"):
+            if keyword in lowered_url:
+                score += 1
+        if "new-york" in lowered_url or "new-jersey" in lowered_url:
+            score += 1
+
+        if "world-cup" in lowered_url and "round-of-32" in lowered_url and score > best_score:
+            best_score = score
+            best_url = url
+
+    if best_score >= 4:
+        return best_url
     return None
 
 
@@ -111,7 +118,13 @@ def save_state(state: dict) -> None:
     STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
-def send_email_alert(lowest_price: float, event_url: str) -> None:
+def send_email_alert(
+    lowest_price: float,
+    event_url: str,
+    recipient: str,
+    checked_at: str,
+    previous_historical_low: Optional[float],
+) -> None:
     smtp_host = os.getenv("ALERT_SMTP_HOST")
     smtp_port = int(os.getenv("ALERT_SMTP_PORT", "465"))
     smtp_user = os.getenv("ALERT_SMTP_USERNAME")
@@ -127,8 +140,17 @@ def send_email_alert(lowest_price: float, event_url: str) -> None:
     msg = EmailMessage()
     msg["Subject"] = EMAIL_SUBJECT
     msg["From"] = from_email
-    msg["To"] = TARGET_RECIPIENT
-    msg.set_content(f"Lowest price: ${lowest_price:.2f}\nEvent: {event_url}")
+    msg["To"] = recipient
+    previous_text = (
+        f"${previous_historical_low:.2f}" if previous_historical_low is not None else "none (first result)"
+    )
+    msg.set_content(
+        "A new historical low ticket price was detected.\n"
+        f"Checked at (UTC): {checked_at}\n"
+        f"Previous historical low: {previous_text}\n"
+        f"Lowest price: ${lowest_price:.2f}\n"
+        f"Event: {event_url}"
+    )
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
@@ -151,14 +173,22 @@ def run_check() -> None:
     state = load_state()
     historical_low = state.get("historical_low")
     should_alert = historical_low is None or current_price < float(historical_low)
+    previous_historical_low = float(historical_low) if historical_low is not None else None
 
     checked_at = datetime.now(timezone.utc).isoformat()
+    recipient = os.getenv("ALERT_TO_EMAIL", DEFAULT_RECIPIENT)
     state["last_checked_at"] = checked_at
     state["last_price"] = current_price
     state["event_url"] = event_url
 
     if should_alert:
-        send_email_alert(current_price, event_url)
+        send_email_alert(
+            current_price,
+            event_url,
+            recipient,
+            checked_at,
+            previous_historical_low,
+        )
         state["historical_low"] = current_price
         state["last_alert_at"] = checked_at
         print(f"[{checked_at}] New historical low found: ${current_price:.2f} (alert sent)")

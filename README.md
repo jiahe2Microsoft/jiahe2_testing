@@ -9,7 +9,7 @@ This repository includes `ticket_price_agent.py`, a Python agent that:
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.9+ (tested with Python 3.12)
 - SMTP credentials for sending outbound email
 
 ## Configuration
@@ -21,6 +21,7 @@ Set environment variables before running:
 - `ALERT_SMTP_USERNAME`
 - `ALERT_SMTP_PASSWORD`
 - `ALERT_FROM_EMAIL` (optional; defaults to `ALERT_SMTP_USERNAME`)
+- `ALERT_TO_EMAIL` (optional; defaults to `hejia90@hotmail.com`)
 - `SEATGEEK_EVENT_URL` (optional; if omitted, the script searches SeatGeek automatically)
 
 ## Usage
