@@ -173,8 +173,8 @@ def run_check() -> None:
 
     state = load_state()
     historical_low = state.get("historical_low")
-    should_alert = historical_low is None or current_price < float(historical_low)
     previous_historical_low = float(historical_low) if historical_low is not None else None
+    should_alert = previous_historical_low is None or current_price < previous_historical_low
 
     checked_at = datetime.now(timezone.utc).isoformat()
     recipient = os.getenv("ALERT_TO_EMAIL")
@@ -198,7 +198,7 @@ def run_check() -> None:
     else:
         print(
             f"[{checked_at}] Current price: ${current_price:.2f} | "
-            f"Historical low: ${float(historical_low):.2f}"
+            f"Historical low: ${previous_historical_low:.2f}"
         )
     save_state(state)
 
